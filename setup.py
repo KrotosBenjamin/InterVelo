@@ -15,7 +15,7 @@ setup(
  	"numba==0.53.1",
 	"pandas<2.0.0",
         "scvelo>=0.2.4,<0.3",
-	'torch>=1.9.1,<1.13',
+	'torch>=1.9.1',
         'torchdiffeq>=0.2.2',
         'scanpy>=1.7.1',
         'anndata>=0.7.5',
