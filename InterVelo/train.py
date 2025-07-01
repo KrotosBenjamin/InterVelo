@@ -33,7 +33,7 @@ class Constants(object, metaclass=MetaConstants):
             "n_hidden": 128,
             "n_latent": 20,    
             "log_variational": False,
-            "pred_unspliced": True,
+            "pred_unspliced": False,
             "use_batch_norm": False,
             "use_layer_norm": False,
             "ode_method": 'euler',
@@ -69,12 +69,13 @@ class Constants(object, metaclass=MetaConstants):
         "mask_zeros": False,
         "lr_scheduler": {"type": "StepLR", "args": {"step_size": 1, "gamma": 0.97}},
         "trainer": {
+            "check_direction":True,
             "epochs": 100,
             "loss1_epochs": 0,
             "save_dir": "saved/",
             "save_period": 1000,
             "verbosity": 1,
-            "early_stop": 1000,
+            "early_stop": 10,
             "tensorboard": True,
             "grad_clip": True,
         },
@@ -187,7 +188,7 @@ def train(
     logg.hint(f"added 'X_VF'(adata.obsm)")
 
     if return_kinetic_rates:
-        if configs["data_loader"]["args"]["pred_unspliced"]:
+        if configs["arch"]["args"]["pred_unspliced"]:
             if configs["data_loader"]["args"]["velocity_genes"]:
                 alpha_ = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
                 alpha_[:, adata.var["velocity_genes"].values] = alpha_rates
@@ -204,94 +205,97 @@ def train(
                 adata.var["pred_" + k] = v
                 logg.hint(f"added 'pred_{k}' (adata.var)")
 
-    scv.tl.velocity_graph(adata, n_jobs=10)
-    scv.tl.velocity_pseudotime(adata)
-    logg.hint(f"added 'velocity_pseudotime'(adata.obs)")
-
-    A = adata.obs["pseudotime"]
-    B = adata.obs["velocity_pseudotime"]
-    correlation = np.corrcoef(A, B)[0, 1]
-
-    if correlation < 0:
-        logg.hint("Train again to correct direction of pseudotime.")
-        if correlation < 0:
-            trainer.model.scale1 = torch.nn.Parameter(-trainer.model.scale1)
-            trainer.model.scale2 = torch.nn.Parameter(-trainer.model.scale2)
-        if verbose:
-            trainer.train_with_epoch_callback(
-                callback=callback_wrapper,
-                freq=kwargs.get("freq", 30),
-            )
-        else:
-            trainer.train()
-
-      
-        config_copy = configs["data_loader"]["args"].copy()
-        config_copy.update(shuffle=False, validation_split=0, training=False, data_source=adata, inputdata=inputdata)
-        eval_loader = getattr(module_data, configs["data_loader"]["type"])(
-                **config_copy
-            )
-        velo_mat, velo_mat_u, alpha_rates, kinetic_rates, pseudotime, mix_z, vector_field = trainer.eval(
-            eval_loader, return_kinetic_rates=return_kinetic_rates
-        )
-
-        print("velo_mat shape:", velo_mat.shape)
-        # add velocity
-        if configs["data_loader"]["args"]["velocity_genes"]:
-            # the predictions only contain the velocity genes
-            velocity_ = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
-            idx = adata.var["velocity_genes"].values
-            velocity_[:, idx] = velo_mat
-            if len(velo_mat_u) > 0:
-                velocity_u = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
-                velocity_u[:, idx] = velo_mat_u
-        else:
-            velocity_ = velo_mat
-            velocity_u = velo_mat_u
-
-        assert adata.layers["Ms"].shape == velocity_.shape
-        adata.layers["velocity"] = velocity_  # (cells, genes)
-        adata.obs["pseudotime"] = pseudotime
-        adata.obsm['X_TNODE'] = mix_z
-        adata.obsm['X_VF'] = vector_field
-        if len(velo_mat_u) > 0:
-            adata.layers["velocity_unspliced"] = velocity_u
-            logg.hint(f"added 'velocity_unspliced' (adata.layers)")
-            num_columns = adata.layers["velocity"].shape[1]
-            correlations = []
-            for i in range(num_columns):
-                corr, _ = pearsonr(adata.layers["velocity"][:, i], adata.layers["velocity_unspliced"][:, i])
-                correlations.append(corr)
-            correlation2 = np.mean(correlations)
-            if correlation2 < 0:
-                logg.hint(f"the correlation of 'velocity_unspliced' and 'velocity' is negative, consider to reverse 'velocity_unspliced'")
-
-        logg.hint(f"added 'velocity' (adata.layers)")
-        logg.hint(f"added 'pseudotime'(adata.obs)")
-        logg.hint(f"added 'X_TNODE'(adata.obsm)")
-        logg.hint(f"added 'X_VF'(adata.obsm)")
-
-        if return_kinetic_rates:
-            if configs["data_loader"]["args"]["pred_unspliced"]:
-                if configs["data_loader"]["args"]["velocity_genes"]:
-                    alpha_ = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
-                    alpha_[:, adata.var["velocity_genes"].values] = alpha_rates
-                else:
-                    alpha_= alpha_rates
-                adata.layers['alpha'] = alpha_
-                logg.hint(f"added 'alpha'(adata.layers)")
-            for k, v in kinetic_rates.items():
-                if v is not None:
-                    if configs["data_loader"]["args"]["velocity_genes"]:
-                        v_ = np.zeros(adata.shape, dtype=v.dtype)
-                        v_[adata.var["velocity_genes"].values] = v
-                        v = v_
-                    adata.var["pred_" + k] = v
-                    logg.hint(f"added 'pred_{k}' (adata.var)")
-
+    if configs["trainer"]["check_direction"]:
         scv.tl.velocity_graph(adata, n_jobs=10)
         scv.tl.velocity_pseudotime(adata)
-        logg.hint(f"added 'velocity_pseudotime'(adata.obs)")
+        logg.hint("added 'velocity_pseudotime'(adata.obs)")
+
+    
+        A = adata.obs["pseudotime"]
+        B = adata.obs["velocity_pseudotime"]
+        correlation = np.corrcoef(A, B)[0, 1]
+
+        if correlation < 0:
+            logg.hint("Train again to correct direction of pseudotime.")
+            if correlation < 0:
+                trainer.model.scale1 = torch.nn.Parameter(-trainer.model.scale1)
+                trainer.model.scale2 = torch.nn.Parameter(-trainer.model.scale2)
+            if verbose:
+                trainer.train_with_epoch_callback(
+                    callback=callback_wrapper,
+                    freq=kwargs.get("freq", 30),
+                )
+            else:
+                trainer.train()
+
+      
+            config_copy = configs["data_loader"]["args"].copy()
+            config_copy.update(shuffle=False, validation_split=0, training=False, data_source=adata, inputdata=inputdata)
+            eval_loader = getattr(module_data, configs["data_loader"]["type"])(
+                **config_copy
+            )
+            velo_mat, velo_mat_u, alpha_rates, kinetic_rates, pseudotime, mix_z, vector_field = trainer.eval(
+                eval_loader, return_kinetic_rates=return_kinetic_rates
+            )
+
+            print("velo_mat shape:", velo_mat.shape)
+            # add velocity
+            if configs["data_loader"]["args"]["velocity_genes"]:
+                # the predictions only contain the velocity genes
+                velocity_ = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
+                idx = adata.var["velocity_genes"].values
+                velocity_[:, idx] = velo_mat
+                if len(velo_mat_u) > 0:
+                    velocity_u = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
+                    velocity_u[:, idx] = velo_mat_u
+            else:
+                velocity_ = velo_mat
+                velocity_u = velo_mat_u
+
+            assert adata.layers["Ms"].shape == velocity_.shape
+            adata.layers["velocity"] = velocity_  # (cells, genes)
+            adata.obs["pseudotime"] = pseudotime
+            adata.obsm['X_TNODE'] = mix_z
+            adata.obsm['X_VF'] = vector_field
+            if len(velo_mat_u) > 0:
+                adata.layers["velocity_unspliced"] = velocity_u
+                logg.hint(f"added 'velocity_unspliced' (adata.layers)")
+                num_columns = adata.layers["velocity"].shape[1]
+                correlations = []
+                for i in range(num_columns):
+                    corr, _ = pearsonr(adata.layers["velocity"][:, i], adata.layers["velocity_unspliced"][:, i])
+                    correlations.append(corr)
+                correlation2 = np.mean(correlations)
+                if correlation2 < 0:
+                    logg.hint(f"the correlation of 'velocity_unspliced' and 'velocity' is negative, consider to reverse 'velocity_unspliced'")
+
+            logg.hint(f"added 'velocity' (adata.layers)")
+            logg.hint(f"added 'pseudotime'(adata.obs)")
+            logg.hint(f"added 'X_TNODE'(adata.obsm)")
+            logg.hint(f"added 'X_VF'(adata.obsm)")
+
+            if return_kinetic_rates:
+                if configs["arch"]["args"]["pred_unspliced"]:
+                    if configs["data_loader"]["args"]["velocity_genes"]:
+                        alpha_ = np.full(adata.shape, np.nan, dtype=velo_mat.dtype)
+                        alpha_[:, adata.var["velocity_genes"].values] = alpha_rates
+                    else:
+                        alpha_= alpha_rates
+                    adata.layers['alpha'] = alpha_
+                    logg.hint(f"added 'alpha'(adata.layers)")
+                for k, v in kinetic_rates.items():
+                    if v is not None:
+                        if configs["data_loader"]["args"]["velocity_genes"]:
+                            v_ = np.zeros(adata.shape, dtype=v.dtype)
+                            v_[adata.var["velocity_genes"].values] = v
+                            v = v_
+                        adata.var["pred_" + k] = v
+                        logg.hint(f"added 'pred_{k}' (adata.var)")
+
+            scv.tl.velocity_graph(adata, n_jobs=10)
+            scv.tl.velocity_pseudotime(adata)
+            logg.hint(f"added 'velocity_pseudotime'(adata.obs)")
+
     logg.hint(f"model scale1: {trainer.model.scale1}")
     logg.hint(f"model scale2: {trainer.model.scale2}")
     return trainer
