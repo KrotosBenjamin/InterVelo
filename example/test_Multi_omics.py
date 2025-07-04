@@ -30,7 +30,7 @@ inputdata=torch.cat([spliced,unspliced,atac],dim=1)
 configs = {
         "name": "InterVelo", # name of the experiment
         "loss_pearson": {"coeff_s": autoset_coeff_s(adata)} ,# Automatic setting of the spliced correlation objective
-        "arch": {"args": {"pred_unspliced": True}},
+        "arch": {"args": {"pred_unspliced": False}},
         "trainer": { "epochs": 100},
     }
 configs = update_dict(Constants.default_configs, configs)

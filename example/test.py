@@ -9,6 +9,15 @@ from InterVelo.train import train, Constants
 from InterVelo._utils import update_dict, autoset_coeff_s
 from InterVelo.data import preprocess_data
 
+#Setting appropriate initial values can help estimate pseudotime. 
+#As the velocity direction is more stable than pseudotime, we suggest taking it as the references
+#If the pseudotime is inconsistent with the velocity direction, try changing the random seed.
+SEED = 123
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 adata = scv.datasets.pancreas()
 scv.pp.filter_and_normalize(adata, min_shared_counts=20, n_top_genes=2000)
 sc.pp.pca(adata)
@@ -23,7 +32,9 @@ inputdata=torch.cat([spliced,unspliced],dim=1)
 configs = {
         "name": "InterVelo", # name of the experiment
         "loss_pearson": {"coeff_s": autoset_coeff_s(adata)}  ,# Automatic setting of the spliced correlation objective
-        "arch": {"args": {"pred_unspliced": True}},
-    }
+        "arch": {"args": {"pred_unspliced": False,
+				#"scale1":1,   # Changing the sign of scale1 can help control the direction of pseudotime.
+				}},
+    	}
 configs = update_dict(Constants.default_configs, configs)
 trainer = train(adata, inputdata, configs)

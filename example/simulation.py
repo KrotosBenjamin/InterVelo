@@ -46,7 +46,7 @@ inputdata=torch.cat([spliced,unspliced,inputdata],dim=1)
 configs = {
         "name": "InterVelo", # name of the experiment
         "loss_pearson": {"coeff_s": autoset_coeff_s(adata)},# Automatic setting of the spliced correlation objective
-        "trainer": { "epochs": 100, "loss1_epochs":0},
+        "trainer": { "epochs": 100},
     }
 configs = update_dict(Constants.default_configs, configs)
 trainer = train(adata, inputdata, configs)
