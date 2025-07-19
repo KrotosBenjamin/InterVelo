@@ -217,9 +217,9 @@ def train(
 
         if correlation < 0:
             logg.hint("Train again to correct direction of pseudotime.")
-            if correlation < 0:
-                trainer.model.scale1 = torch.nn.Parameter(-trainer.model.scale1)
-                trainer.model.scale2 = torch.nn.Parameter(-trainer.model.scale2)
+            
+            trainer.model.scale1 = torch.nn.Parameter(-trainer.model.scale1)
+            trainer.model.scale2 = torch.nn.Parameter(-trainer.model.scale2)
             if verbose:
                 trainer.train_with_epoch_callback(
                     callback=callback_wrapper,
@@ -281,8 +281,8 @@ def train(
                         alpha_[:, adata.var["velocity_genes"].values] = alpha_rates
                     else:
                         alpha_= alpha_rates
-                    adata.layers['alpha'] = alpha_
-                    logg.hint(f"added 'alpha'(adata.layers)")
+                    adata.layers['pred_alpha'] = alpha_
+                    logg.hint(f"added 'pred_alpha'(adata.layers)")
                 for k, v in kinetic_rates.items():
                     if v is not None:
                         if configs["data_loader"]["args"]["velocity_genes"]:

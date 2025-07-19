@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="InterVelo",
-    version="0.1.1",
+    version="0.1.2",
     author="YurouWang",
     author_email="rapunzel@sjtu.edu.cn",
     description="A deep learning framework to simutaneously learn the pseudotime and RNA velocity.",
