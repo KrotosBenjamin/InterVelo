@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite it as below."
+title: " InterVelo: A Mutually Enhancing Model for Estimating Pseudotime and RNA Velocity in Multi-Omic Single-Cell Data"
+version: "0.1.1"
+doi: "10.5281/zenodo.15876570"
+date-released: 2024-07-14
+authors:
+  - family-names: Wang
+    given-names: Yurou
+    orcid: https://orcid.org/0009-0002-9394-9858 
+repository-code: https://github.com/yurouwang-rosie/InterVelo
+url: https://doi.org/10.5281/zenodo.15876570
+license: MIT
