@@ -28,7 +28,7 @@ setup(
         # Single-cell ecosystem
         "scanpy>=1.9,<2.0",
         "scvelo>=0.3.1,<0.4",
-        "anndata>=0.8,<0.11",
+        "anndata>=0.11,<0.12",
 
         # Performance / utilities
         "numba>=0.57",
