@@ -1,38 +1,63 @@
+from pathlib import Path
 from setuptools import setup, find_packages
+
+this_dir = Path(__file__).parent
 
 setup(
     name="InterVelo",
-    version="0.1.2",
-    author="YurouWang",
+    version="0.2.0",
+    author="Yurou Wang",
     author_email="rapunzel@sjtu.edu.cn",
-    description="A deep learning framework to simutaneously learn the pseudotime and RNA velocity.",
-    long_description=open("README.md").read(), 
+    description="A deep learning framework for joint inference of pseudotime and RNA velocity",
+    long_description=(this_dir / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     url="https://github.com/yurouwang-rosie/InterVelo",
-    packages=find_packages(), 
+    packages=find_packages(exclude=("tests", "docs")),
+    include_package_data=True,
+
     install_requires=[
-        "numpy==1.21.1", 
- 	"numba==0.53.1",
-	"pandas<2.0.0",
-        "scvelo>=0.2.4,<0.3",
-	'torch>=1.9.1',
-        'torchdiffeq>=0.2.2',
-        'scanpy>=1.7.1',
-        'anndata>=0.7.5',
-        'scipy>=1.5.2',
-        'tqdm>=4.32.2',
-        'scikit-learn>=0.24.1',
-	'matplotlib>=3.3,<3.6',
+        # Core numerical stack
+        "numpy>=1.23,<3.0",
+        "scipy>=1.9,<2.0",
+        "pandas>=1.5,<3.0",
+
+        # ML / DL
+        "torch>=2.0",
+        "torchdiffeq>=0.2.3",
+
+        # Single-cell ecosystem
+        "scanpy>=1.9,<2.0",
+        "scvelo>=0.3.1,<0.4",
+        "anndata>=0.8,<0.11",
+
+        # Performance / utilities
+        "numba>=0.57",
+        "scikit-learn>=1.2",
+        "tqdm>=4.64",
+
+        # Plotting
+        "matplotlib>=3.7,<4.0",
+        "seaborn>=0.12",
     ],
+
+    python_requires=">=3.9,<3.12",
+
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",  
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Intended Audience :: Science/Research",
     ],
-    python_requires=">=3.8,<3.10",  
+
     entry_points={
         "console_scripts": [
-            "InterVelo=InterVelo.main:main",  # 创建命令行工具
+            "intervelo=InterVelo.main:main", # 创建命令行工具
         ],
     },
+
+    license="MIT",
 )
